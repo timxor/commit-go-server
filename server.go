@@ -12,11 +12,23 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
+	_ "github.com/lib/pq"
+
 	"github.com/gorilla/mux"
+)
+
+const (
+	host     = "13.57.73.45"
+	port     = 5432
+	user     = "tim"
+	password = "meowmeow"
+	dbname   = "commitdb"
 )
 
 // define mock data structures
@@ -72,6 +84,37 @@ func DeletePersonEndpoint(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("Successfully connected!")
+	fmt.Println("Sending a remote query...")
+
+	sqlStatement := `SELECT id, email FROM users WHERE id=$1;`
+	var email string
+	var id int
+	// Replace 3 with an ID from your database or another random
+	// value to test the no rows use case.
+	row := db.QueryRow(sqlStatement, 3)
+	switch err := row.Scan(&id, &email); err {
+	case sql.ErrNoRows:
+		fmt.Println("No rows were returned!")
+	case nil:
+		fmt.Println("Query result: ")
+		fmt.Println(id, email)
+	default:
+		panic(err)
+	}
 
 	// define a mux router
 	router := mux.NewRouter()
